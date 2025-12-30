@@ -3,37 +3,85 @@
 
 name = "product-feedback-api"
 main = "dist/worker.js"
-compatibility_date = "2024-01-01"
+compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
-# Limits
+# Limits (requires paid plan)
 # See: https://developers.cloudflare.com/workers/platform/limits/
-[limits]
-cpu_ms = 50
+# [limits]
+# cpu_ms = 50
 
-# D1 Database binding
+# ============================================
+# Production Environment (default)
+# ============================================
+
+# D1 Database binding (Production)
 # Create database with: wrangler d1 create product-feedback-db
 # Then update database_id below
 [[d1_databases]]
 binding = "DB"
 database_name = "product-feedback-db"
-database_id = "YOUR_DATABASE_ID_HERE"  # Replace after running: wrangler d1 create product-feedback-db
+database_id = "3000b63e-079c-4268-a68a-d841c7d300ab"
 
-# Environment variables
-# Set with: wrangler secret put ADMIN_API_KEY
+# Production environment variables
+# Secrets (set with: wrangler secret put ADMIN_API_KEY)
 [vars]
 NODE_ENV = "production"
+API_VERSION = "v1"
 
-# Staging environment (optional override)
+# ============================================
+# Staging Environment
+# ============================================
+# Deploy with: wrangler deploy --env staging
+
 [env.staging]
 name = "product-feedback-api-staging"
-vars = { NODE_ENV = "staging" }
 
+[env.staging.vars]
+NODE_ENV = "staging"
+API_VERSION = "v1"
+
+# D1 Database binding (Staging)
+# Create database with: wrangler d1 create product-feedback-db-staging
 [[env.staging.d1_databases]]
 binding = "DB"
 database_name = "product-feedback-db-staging"
-database_id = "YOUR_STAGING_DATABASE_ID_HERE"  # Replace after running: wrangler d1 create product-feedback-db-staging
+database_id = "a2f15cc3-7adf-43bd-b8cd-76091a301787"
 
-# Rate limiting (optional - uses Cloudflare's built-in rate limiting)
-# Configure in Cloudflare Dashboard > Security > WAF > Rate limiting rules
+# ============================================
+# Custom Domain Configuration (Optional)
+# ============================================
+# Uncomment and configure after setting up custom domain in Cloudflare Dashboard
+#
+# [routes]
+# pattern = "api.your-domain.com/*"
+# zone_name = "your-domain.com"
+#
+# [env.staging.routes]
+# pattern = "api-staging.your-domain.com/*"
+# zone_name = "your-domain.com"
 
+# ============================================
+# Rate Limiting Notes
+# ============================================
+# Rate limiting is configured via Cloudflare Dashboard:
+# Security > WAF > Rate limiting rules
+#
+# Recommended limits per API key:
+# - Feedback submissions: 100/min
+# - Snapshot submissions: 200/min
+# - Project management: 30/min
+
+# ============================================
+# Secrets Configuration
+# ============================================
+# Set secrets with wrangler (not stored in this file):
+#
+# Production:
+#   wrangler secret put ADMIN_API_KEY
+#
+# Staging:
+#   wrangler secret put ADMIN_API_KEY --env staging
+#
+# Required secrets:
+# - ADMIN_API_KEY: Admin authentication for project management API

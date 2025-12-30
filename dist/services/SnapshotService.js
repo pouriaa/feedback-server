@@ -1,37 +1,58 @@
 /**
  * SnapshotService - Business logic for handling DOM snapshot comparison
- * Compares fingerprints to detect changes between snapshots
+ * Uses Prisma with SQLite/D1 for persistent storage
  */
-import { v4 as uuidv4 } from "uuid";
-/**
- * In-memory storage for snapshots (can be swapped for database)
- * Key: sessionId + url combination for quick lookup
- */
-const snapshotStore = new Map();
-/**
- * Generate a storage key from sessionId and URL
- */
-function getStorageKey(sessionId, url) {
-    return `${sessionId}::${url}`;
-}
+import { getPrisma } from "../db/index.js";
 export class SnapshotService {
     /**
      * Process a snapshot and detect changes compared to previous snapshot
+     * @param data - Snapshot data from the client
+     * @param projectId - Project ID for multi-tenancy
      */
-    async processSnapshot(data) {
-        const storageKey = getStorageKey(data.sessionId, data.url);
-        const existingSnapshot = snapshotStore.get(storageKey);
-        // Store the new snapshot
-        const id = uuidv4();
-        const storedSnapshot = {
-            ...data,
-            id,
-            receivedAt: new Date().toISOString(),
-        };
-        snapshotStore.set(storageKey, storedSnapshot);
+    async processSnapshot(data, projectId) {
+        const prisma = getPrisma();
+        // Find existing snapshot for this project + session + url combination
+        const existingSnapshot = await prisma.snapshot.findUnique({
+            where: {
+                projectId_sessionId_url: {
+                    projectId,
+                    sessionId: data.sessionId,
+                    url: data.url,
+                },
+            },
+        });
+        // Upsert the new snapshot (replace if exists, create if not)
+        await prisma.snapshot.upsert({
+            where: {
+                projectId_sessionId_url: {
+                    projectId,
+                    sessionId: data.sessionId,
+                    url: data.url,
+                },
+            },
+            update: {
+                html: data.html,
+                timestamp: data.timestamp,
+                fingerprint: data.fingerprint,
+                title: data.title,
+                viewportWidth: data.viewport?.width,
+                viewportHeight: data.viewport?.height,
+            },
+            create: {
+                projectId,
+                html: data.html,
+                url: data.url,
+                timestamp: data.timestamp,
+                sessionId: data.sessionId,
+                fingerprint: data.fingerprint,
+                title: data.title,
+                viewportWidth: data.viewport?.width,
+                viewportHeight: data.viewport?.height,
+            },
+        });
         // If no existing snapshot, this is the first one - no changes to detect
         if (!existingSnapshot) {
-            console.log(`[SnapshotService] First snapshot for ${storageKey}`);
+            console.log(`[SnapshotService] First snapshot for session ${data.sessionId} at ${data.url}`);
             return {
                 hasChanges: false,
                 changedElements: [],
@@ -40,14 +61,14 @@ export class SnapshotService {
         // Compare fingerprints
         const hasChanges = existingSnapshot.fingerprint !== data.fingerprint;
         if (!hasChanges) {
-            console.log(`[SnapshotService] No changes detected for ${storageKey}`);
+            console.log(`[SnapshotService] No changes detected for session ${data.sessionId} at ${data.url}`);
             return {
                 hasChanges: false,
                 changedElements: [],
             };
         }
         // Fingerprints differ - detect what changed
-        console.log(`[SnapshotService] Changes detected for ${storageKey}`, {
+        console.log(`[SnapshotService] Changes detected for session ${data.sessionId} at ${data.url}`, {
             oldFingerprint: existingSnapshot.fingerprint.substring(0, 20) + "...",
             newFingerprint: data.fingerprint.substring(0, 20) + "...",
         });
@@ -220,39 +241,66 @@ export class SnapshotService {
         };
     }
     /**
-     * Get a snapshot by ID
+     * Get a snapshot by ID (optionally scoped to project)
      */
-    async getById(id) {
-        for (const snapshot of snapshotStore.values()) {
-            if (snapshot.id === id) {
-                return snapshot;
-            }
+    async getById(id, projectId) {
+        const prisma = getPrisma();
+        const snapshot = await prisma.snapshot.findUnique({
+            where: { id },
+        });
+        if (!snapshot)
+            return null;
+        // If projectId provided, verify ownership
+        if (projectId && snapshot.projectId !== projectId) {
+            return null;
         }
-        return null;
+        return this.toStoredSnapshot(snapshot);
     }
     /**
-     * Get all snapshots for a session
+     * Get all snapshots for a session (scoped to project)
      */
-    async getBySessionId(sessionId) {
-        const results = [];
-        for (const snapshot of snapshotStore.values()) {
-            if (snapshot.sessionId === sessionId) {
-                results.push(snapshot);
-            }
-        }
-        return results;
+    async getBySessionId(sessionId, projectId) {
+        const prisma = getPrisma();
+        const snapshots = await prisma.snapshot.findMany({
+            where: { sessionId, projectId },
+            orderBy: { receivedAt: "desc" },
+        });
+        return snapshots.map((s) => this.toStoredSnapshot(s));
     }
     /**
-     * Get the count of stored snapshots
+     * Get the count of stored snapshots for a project
      */
-    async getCount() {
-        return snapshotStore.size;
+    async getCount(projectId) {
+        const prisma = getPrisma();
+        return prisma.snapshot.count({ where: { projectId } });
     }
     /**
-     * Clear all snapshots (useful for testing)
+     * Clear all snapshots for a project (useful for testing)
      */
-    async clear() {
-        snapshotStore.clear();
+    async clear(projectId) {
+        const prisma = getPrisma();
+        await prisma.snapshot.deleteMany({ where: { projectId } });
+    }
+    /**
+     * Convert Prisma model to StoredSnapshot type
+     */
+    toStoredSnapshot(snapshot) {
+        return {
+            id: snapshot.id,
+            receivedAt: snapshot.receivedAt.toISOString(),
+            html: snapshot.html,
+            url: snapshot.url,
+            timestamp: snapshot.timestamp,
+            sessionId: snapshot.sessionId,
+            fingerprint: snapshot.fingerprint,
+            title: snapshot.title ?? undefined,
+            viewport: snapshot.viewportWidth !== null && snapshot.viewportHeight !== null
+                ? {
+                    width: snapshot.viewportWidth,
+                    height: snapshot.viewportHeight,
+                }
+                : undefined,
+        };
     }
 }
 // Export a singleton instance

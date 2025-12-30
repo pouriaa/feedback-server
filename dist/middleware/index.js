@@ -6,4 +6,5 @@ export { createCorsMiddleware } from "./cors.js";
 export { feedbackRateLimiter, snapshotRateLimiter, generalRateLimiter, } from "./rateLimit.js";
 export { requestLogger, simpleRequestLogger } from "./requestLogger.js";
 export { errorHandler, notFoundHandler, asyncHandler, APIError, badRequest, unauthorized, forbidden, notFound, tooManyRequests, internalError, } from "./errorHandler.js";
+export { createApiKeyAuth, createAdminAuth } from "./apiKeyAuth.js";
 //# sourceMappingURL=index.js.map

@@ -1,13 +1,15 @@
 /**
  * SnapshotService - Business logic for handling DOM snapshot comparison
- * Compares fingerprints to detect changes between snapshots
+ * Uses Prisma with SQLite/D1 for persistent storage
  */
 import type { SnapshotData, StoredSnapshot, ChangeDetectionResponse } from "../types/index.js";
 export declare class SnapshotService {
     /**
      * Process a snapshot and detect changes compared to previous snapshot
+     * @param data - Snapshot data from the client
+     * @param projectId - Project ID for multi-tenancy
      */
-    processSnapshot(data: SnapshotData): Promise<ChangeDetectionResponse>;
+    processSnapshot(data: SnapshotData, projectId: string): Promise<ChangeDetectionResponse>;
     /**
      * Detect changed elements between two HTML snapshots
      * This is a simplified implementation - in production, you might use
@@ -30,21 +32,25 @@ export declare class SnapshotService {
      */
     private generatePromptConfig;
     /**
-     * Get a snapshot by ID
+     * Get a snapshot by ID (optionally scoped to project)
      */
-    getById(id: string): Promise<StoredSnapshot | null>;
+    getById(id: string, projectId?: string): Promise<StoredSnapshot | null>;
     /**
-     * Get all snapshots for a session
+     * Get all snapshots for a session (scoped to project)
      */
-    getBySessionId(sessionId: string): Promise<StoredSnapshot[]>;
+    getBySessionId(sessionId: string, projectId: string): Promise<StoredSnapshot[]>;
     /**
-     * Get the count of stored snapshots
+     * Get the count of stored snapshots for a project
      */
-    getCount(): Promise<number>;
+    getCount(projectId: string): Promise<number>;
     /**
-     * Clear all snapshots (useful for testing)
+     * Clear all snapshots for a project (useful for testing)
      */
-    clear(): Promise<void>;
+    clear(projectId: string): Promise<void>;
+    /**
+     * Convert Prisma model to StoredSnapshot type
+     */
+    private toStoredSnapshot;
 }
 export declare const snapshotService: SnapshotService;
 //# sourceMappingURL=SnapshotService.d.ts.map

@@ -29,6 +29,9 @@ async function build() {
         // Prisma needs special handling - it's bundled separately
         "@prisma/client",
         "@prisma/adapter-d1",
+        // Node.js built-ins (only used in local dev, not in Workers)
+        "url",
+        "path",
       ],
       define: {
         "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV ?? "production"),

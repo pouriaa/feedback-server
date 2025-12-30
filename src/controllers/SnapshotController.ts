@@ -41,9 +41,9 @@ export class SnapshotController {
    * GET /snapshots/:id - Get snapshot by ID (optional utility endpoint)
    * Scoped to authenticated project
    */
-  async getById(req: Request<{ id: string }>, res: Response): Promise<void> {
+  async getById(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const projectId = req.project?.id;
       const snapshot = await snapshotService.getById(id, projectId);
 

@@ -8,7 +8,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { setD1Binding, initializePrisma, disconnectDb } from "./db/index.js";
+import { setD1Binding, initializePrisma } from "./db/index.js";
 import { feedbackService } from "./services/FeedbackService.js";
 import { snapshotService } from "./services/SnapshotService.js";
 import { FeedbackDataSchema, SnapshotDataSchema } from "./types/index.js";
@@ -36,10 +36,14 @@ app.use("*", async (c, next) => {
 });
 
 // Helper to validate API key and get project
+type AuthSuccess = { project: any; error?: never; status?: never };
+type AuthError = { error: string; status: number; project?: never };
+type AuthResult = AuthSuccess | AuthError;
+
 async function validateApiKey(
   apiKey: string | null,
   origin: string | null
-): Promise<{ project: any; error?: undefined } | { error: string; status: number }> {
+): Promise<AuthResult> {
   if (!apiKey) {
     return { error: "API key required", status: 401 };
   }

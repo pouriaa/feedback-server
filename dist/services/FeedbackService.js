@@ -1,70 +1,134 @@
 /**
  * FeedbackService - Business logic for handling feedback submissions
- * Provides in-memory storage with easy interface to swap for database
+ * Uses Prisma with SQLite/D1 for persistent storage
  */
-import { v4 as uuidv4 } from "uuid";
-/**
- * In-memory storage for feedback (can be swapped for database)
- */
-const feedbackStore = new Map();
+import { getPrisma } from "../db/index.js";
 export class FeedbackService {
     /**
      * Store a new feedback submission
+     * @param data - Feedback data from the client
+     * @param projectId - Project ID for multi-tenancy
      */
-    async create(data) {
-        const id = uuidv4();
-        const receivedAt = new Date().toISOString();
-        const storedFeedback = {
-            ...data,
-            id,
-            receivedAt,
-        };
-        feedbackStore.set(id, storedFeedback);
-        console.log(`[FeedbackService] Stored feedback ${id}`, {
+    async create(data, projectId) {
+        const prisma = getPrisma();
+        const feedback = await prisma.feedback.create({
+            data: {
+                // Project relation
+                projectId,
+                // Context fields
+                timestamp: data.context.timestamp,
+                url: data.context.url,
+                referrer: data.context.referrer,
+                userAgent: data.context.userAgent,
+                sessionId: data.context.sessionId,
+                domPath: data.context.domPath,
+                // Viewport
+                viewportWidth: data.context.viewport.width,
+                viewportHeight: data.context.viewport.height,
+                // Trigger info
+                triggerType: data.context.trigger.type,
+                triggerElement: data.context.trigger.element,
+                triggerCoordX: data.context.trigger.coordinates?.x,
+                triggerCoordY: data.context.trigger.coordinates?.y,
+                // Response (value stored as JSON string)
+                responseType: data.response.type,
+                responseValue: JSON.stringify(data.response.value),
+            },
+        });
+        console.log(`[FeedbackService] Stored feedback ${feedback.id}`, {
+            projectId,
             sessionId: data.context.sessionId,
             trigger: data.context.trigger.type,
             responseType: data.response.type,
         });
         return {
             success: true,
-            id,
+            id: feedback.id,
         };
     }
     /**
-     * Get a feedback entry by ID
+     * Get a feedback entry by ID (optionally scoped to project)
      */
-    async getById(id) {
-        return feedbackStore.get(id) ?? null;
-    }
-    /**
-     * Get all feedback entries for a session
-     */
-    async getBySessionId(sessionId) {
-        const results = [];
-        for (const feedback of feedbackStore.values()) {
-            if (feedback.context.sessionId === sessionId) {
-                results.push(feedback);
-            }
+    async getById(id, projectId) {
+        const prisma = getPrisma();
+        const feedback = await prisma.feedback.findUnique({
+            where: { id },
+        });
+        if (!feedback)
+            return null;
+        // If projectId provided, verify ownership
+        if (projectId && feedback.projectId !== projectId) {
+            return null;
         }
-        return results;
+        return this.toStoredFeedback(feedback);
     }
     /**
-     * Get all feedback entries
+     * Get all feedback entries for a session (scoped to project)
      */
-    async getAll() {
-        return Array.from(feedbackStore.values());
+    async getBySessionId(sessionId, projectId) {
+        const prisma = getPrisma();
+        const feedbacks = await prisma.feedback.findMany({
+            where: { sessionId, projectId },
+            orderBy: { receivedAt: "desc" },
+        });
+        return feedbacks.map((f) => this.toStoredFeedback(f));
     }
     /**
-     * Get the count of feedback entries
+     * Get all feedback entries for a project
      */
-    async getCount() {
-        return feedbackStore.size;
+    async getAll(projectId) {
+        const prisma = getPrisma();
+        const feedbacks = await prisma.feedback.findMany({
+            where: { projectId },
+            orderBy: { receivedAt: "desc" },
+        });
+        return feedbacks.map((f) => this.toStoredFeedback(f));
     }
     /**
-     * Clear all feedback (useful for testing)
+     * Get the count of feedback entries for a project
      */
-    async clear() {
-        feedbackStore.clear();
+    async getCount(projectId) {
+        const prisma = getPrisma();
+        return prisma.feedback.count({ where: { projectId } });
+    }
+    /**
+     * Clear all feedback for a project (useful for testing)
+     */
+    async clear(projectId) {
+        const prisma = getPrisma();
+        await prisma.feedback.deleteMany({ where: { projectId } });
+    }
+    /**
+     * Convert Prisma model to StoredFeedback type
+     */
+    toStoredFeedback(feedback) {
+        return {
+            id: feedback.id,
+            receivedAt: feedback.receivedAt.toISOString(),
+            context: {
+                timestamp: feedback.timestamp,
+                url: feedback.url,
+                referrer: feedback.referrer,
+                userAgent: feedback.userAgent,
+                sessionId: feedback.sessionId,
+                domPath: feedback.domPath,
+                viewport: {
+                    width: feedback.viewportWidth,
+                    height: feedback.viewportHeight,
+                },
+                trigger: {
+                    type: feedback.triggerType,
+                    element: feedback.triggerElement ?? undefined,
+                    coordinates: feedback.triggerCoordX !== null && feedback.triggerCoordY !== null
+                        ? { x: feedback.triggerCoordX, y: feedback.triggerCoordY }
+                        : undefined,
+                },
+            },
+            response: {
+                type: feedback.responseType,
+                value: JSON.parse(feedback.responseValue),
+            },
+        };
     }
 }
 // Export a singleton instance

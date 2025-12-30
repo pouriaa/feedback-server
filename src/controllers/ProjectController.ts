@@ -42,7 +42,7 @@ export class ProjectController {
   /**
    * GET /projects - List all projects
    */
-  async list(req: Request, res: Response): Promise<void> {
+  async list(_req: Request, res: Response): Promise<void> {
     try {
       const projects = await projectService.getAll();
       res.status(200).json({ success: true, projects });

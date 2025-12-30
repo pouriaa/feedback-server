@@ -25,7 +25,8 @@
     "d1:create": "wrangler d1 create product-feedback-db",
     "d1:create:staging": "wrangler d1 create product-feedback-db-staging",
     "d1:migrate": "wrangler d1 migrations apply product-feedback-db --local",
-    "d1:migrate:remote": "wrangler d1 migrations apply product-feedback-db --remote"
+    "d1:migrate:remote": "wrangler d1 migrations apply product-feedback-db --remote",
+    "d1:migrate:staging": "wrangler d1 migrations apply product-feedback-db-staging --remote --env staging"
   },
   "dependencies": {
     "@prisma/adapter-d1": "^6.2.1",

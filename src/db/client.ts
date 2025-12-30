@@ -12,6 +12,9 @@
 
 import { PrismaClient } from "@prisma/client";
 
+// D1Database type for Cloudflare Workers
+type D1Database = import("@cloudflare/workers-types").D1Database;
+
 // Check if we're running in Cloudflare Workers environment
 const isWorkersEnvironment = typeof (globalThis as any).caches !== "undefined" &&
   typeof (globalThis as any).caches.default !== "undefined";
@@ -103,7 +106,7 @@ export async function initializePrisma(): Promise<PrismaClient> {
 
 // For backwards compatibility, export a proxy that lazily initializes
 // This allows existing code using `prisma` directly to work
-let prismaProxy: PrismaClient | null = null;
+// Prisma proxy for lazy initialization (kept for potential debugging)
 
 // Create the prisma export as a lazy-initialized singleton
 export const prisma: PrismaClient = new Proxy({} as PrismaClient, {

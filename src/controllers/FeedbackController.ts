@@ -41,9 +41,9 @@ export class FeedbackController {
    * GET /feedback/:id - Get feedback by ID (optional utility endpoint)
    * Scoped to authenticated project
    */
-  async getById(req: Request<{ id: string }>, res: Response): Promise<void> {
+  async getById(req: Request, res: Response): Promise<void> {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const projectId = req.project?.id;
       const feedback = await feedbackService.getById(id, projectId);
 

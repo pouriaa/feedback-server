@@ -5,11 +5,21 @@ import { snapshotService } from "../services/SnapshotService.js";
 export class SnapshotController {
     /**
      * POST /snapshots - Submit a snapshot for change detection
+     * Requires authenticated project via req.project (set by apiKeyAuth middleware)
      */
     async create(req, res) {
         try {
             const snapshotData = req.body;
-            const result = await snapshotService.processSnapshot(snapshotData);
+            const projectId = req.project?.id;
+            if (!projectId) {
+                const errorResponse = {
+                    success: false,
+                    error: "Project context required",
+                };
+                res.status(401).json(errorResponse);
+                return;
+            }
+            const result = await snapshotService.processSnapshot(snapshotData, projectId);
             res.status(200).json(result);
         }
         catch (error) {
@@ -23,11 +33,13 @@ export class SnapshotController {
     }
     /**
      * GET /snapshots/:id - Get snapshot by ID (optional utility endpoint)
+     * Scoped to authenticated project
      */
     async getById(req, res) {
         try {
-            const { id } = req.params;
-            const snapshot = await snapshotService.getById(id);
+            const id = req.params.id;
+            const projectId = req.project?.id;
+            const snapshot = await snapshotService.getById(id, projectId);
             if (!snapshot) {
                 const errorResponse = {
                     success: false,
