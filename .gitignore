@@ -1,0 +1,13 @@
+# SQLite database files (dev only - not committed)
+prisma/dev.db
+prisma/dev.db-journal
+
+# Prisma generated migration lock (can be committed, but keeping it clean)
+# prisma/migrations
+
+# Environment file (contains DB path, keep it local)
+.env.local
+
+# Note: .env is committed with defaults for dev, but ignored in root .gitignore
+# If you have sensitive data, use .env.local instead
+

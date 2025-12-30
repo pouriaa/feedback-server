@@ -1,0 +1,68 @@
+// Prisma schema for Product Feedback API
+// Using SQLite for local development - easy to swap for PostgreSQL in production
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Feedback submission from users
+model Feedback {
+  id         String   @id @default(uuid())
+  receivedAt DateTime @default(now())
+
+  // Context fields (flattened for better queryability)
+  timestamp  String // Original submission timestamp (ISO 8601)
+  url        String
+  referrer   String
+  userAgent  String
+  sessionId  String
+  domPath    String
+
+  // Viewport
+  viewportWidth  Int
+  viewportHeight Int
+
+  // Trigger info
+  triggerType       String  // "rageClick" | "custom" | "snapshot"
+  triggerElement    String? // CSS selector of trigger element
+  triggerCoordX     Float?
+  triggerCoordY     Float?
+
+  // Response
+  responseType  String // "rating" | "choice" | "text"
+  responseValue String // JSON-encoded value (can be string, number, or array)
+
+  @@index([sessionId])
+  @@index([url])
+  @@index([triggerType])
+  @@index([receivedAt])
+}
+
+/// DOM snapshots for change detection
+model Snapshot {
+  id         String   @id @default(uuid())
+  receivedAt DateTime @default(now())
+
+  // Snapshot data
+  html        String // Large HTML content
+  url         String
+  timestamp   String // Original snapshot timestamp (ISO 8601)
+  sessionId   String
+  fingerprint String
+  title       String?
+
+  // Viewport (optional)
+  viewportWidth  Int?
+  viewportHeight Int?
+
+  // Composite unique constraint for quick lookup
+  @@unique([sessionId, url])
+  @@index([sessionId])
+  @@index([fingerprint])
+}
+
