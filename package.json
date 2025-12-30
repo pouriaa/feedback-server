@@ -40,6 +40,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241218.0",
+    "@vitest/coverage-v8": "^4.0.16",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.5",
@@ -50,6 +51,7 @@
     "supertest": "^7.0.0",
     "tsx": "^4.19.2",
     "typescript": "^5.3.3",
+    "vitest": "^4.0.16",
     "wrangler": "^3.99.0"
   },
   "engines": {
