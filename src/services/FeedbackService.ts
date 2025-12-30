@@ -4,11 +4,7 @@
  */
 
 import { prisma } from "../db/index.js";
-import type {
-  FeedbackData,
-  StoredFeedback,
-  FeedbackSubmissionResponse,
-} from "../types/index.js";
+import type { FeedbackData, StoredFeedback, FeedbackSubmissionResponse } from "../types/index.js";
 
 export class FeedbackService {
   /**

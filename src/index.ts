@@ -109,9 +109,13 @@ async function start() {
   });
 }
 
-start().catch((err) => {
-  console.error("Failed to start server:", err);
-  process.exit(1);
-});
+// Only start server when this file is run directly, not when imported
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
+  start().catch((err) => {
+    console.error("Failed to start server:", err);
+    process.exit(1);
+  });
+}
 
 export { app, prisma };
