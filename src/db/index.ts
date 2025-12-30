@@ -2,5 +2,12 @@
  * Database module exports
  */
 
-export { prisma, disconnectDb, testConnection } from "./client.js";
+export {
+  prisma,
+  getPrisma,
+  setD1Binding,
+  initializePrisma,
+  disconnectDb,
+  testConnection,
+} from "./client.js";
 

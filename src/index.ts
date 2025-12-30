@@ -2,7 +2,8 @@
  * Product Feedback Server - Entry Point
  *
  * Express server for handling feedback submissions and DOM snapshot analysis.
- * Uses SQLite via Prisma for persistent storage.
+ * Uses SQLite via Prisma for persistent storage (local development).
+ * For Cloudflare Workers deployment, see worker.ts
  */
 
 import express from "express";
@@ -13,8 +14,8 @@ import {
   errorHandler,
   notFoundHandler,
 } from "./middleware/index.js";
-import { feedbackRoutes, snapshotRoutes } from "./routes/index.js";
-import { prisma, disconnectDb, testConnection } from "./db/index.js";
+import { feedbackRoutes, snapshotRoutes, projectRoutes } from "./routes/index.js";
+import { prisma, initializePrisma, disconnectDb, testConnection } from "./db/index.js";
 import type { HealthCheckResponse } from "./types/index.js";
 
 // Re-export types for external use
@@ -57,6 +58,7 @@ app.get("/health", async (_req, res) => {
 // API Routes
 app.use("/feedback", feedbackRoutes);
 app.use("/snapshots", snapshotRoutes);
+app.use("/projects", projectRoutes);
 
 // 404 handler - must be after all routes
 app.use(notFoundHandler);
@@ -76,6 +78,9 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 
 // Start server
 async function start() {
+  // Initialize Prisma client
+  await initializePrisma();
+
   // Test database connection on startup
   const dbOk = await testConnection();
   if (!dbOk) {
@@ -100,9 +105,14 @@ async function start() {
 ║   Database: SQLite (prisma/dev.db)                        ║
 ║                                                           ║
 ║   Endpoints:                                              ║
-║     POST /feedback   - Submit feedback                    ║
-║     POST /snapshots  - Submit snapshot for analysis       ║
-║     GET  /health     - Health check                       ║
+║     POST /feedback    - Submit feedback (requires API key)║
+║     POST /snapshots   - Submit snapshot (requires API key)║
+║     GET  /health      - Health check                      ║
+║     POST /projects    - Create project (admin only)       ║
+║                                                           ║
+║   Authentication:                                         ║
+║     X-API-Key: Project API key for SDK endpoints          ║
+║     X-Admin-Key: Admin key for project management         ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
     `);

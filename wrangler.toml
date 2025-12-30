@@ -1,0 +1,39 @@
+# Cloudflare Workers configuration for Product Feedback API
+# See: https://developers.cloudflare.com/workers/configuration/
+
+name = "product-feedback-api"
+main = "dist/worker.js"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Limits
+# See: https://developers.cloudflare.com/workers/platform/limits/
+[limits]
+cpu_ms = 50
+
+# D1 Database binding
+# Create database with: wrangler d1 create product-feedback-db
+# Then update database_id below
+[[d1_databases]]
+binding = "DB"
+database_name = "product-feedback-db"
+database_id = "YOUR_DATABASE_ID_HERE"  # Replace after running: wrangler d1 create product-feedback-db
+
+# Environment variables
+# Set with: wrangler secret put ADMIN_API_KEY
+[vars]
+NODE_ENV = "production"
+
+# Staging environment (optional override)
+[env.staging]
+name = "product-feedback-api-staging"
+vars = { NODE_ENV = "staging" }
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "product-feedback-db-staging"
+database_id = "YOUR_STAGING_DATABASE_ID_HERE"  # Replace after running: wrangler d1 create product-feedback-db-staging
+
+# Rate limiting (optional - uses Cloudflare's built-in rate limiting)
+# Configure in Cloudflare Dashboard > Security > WAF > Rate limiting rules
+

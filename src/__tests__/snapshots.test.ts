@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import request from "supertest";
 import { app } from "../index.js";
-import { createSnapshotData, randomSessionId } from "./helpers.js";
+import { createSnapshotData, randomSessionId, TEST_API_KEY } from "./helpers.js";
 
 describe("POST /snapshots", () => {
   it("returns { hasChanges: false } for first snapshot", async () => {
@@ -16,6 +16,7 @@ describe("POST /snapshots", () => {
 
     const response = await request(app)
       .post("/snapshots")
+      .set("X-API-Key", TEST_API_KEY)
       .send(snapshotData)
       .expect("Content-Type", /json/)
       .expect(200);
@@ -40,6 +41,7 @@ describe("POST /snapshots", () => {
 
     await request(app)
       .post("/snapshots")
+      .set("X-API-Key", TEST_API_KEY)
       .send(firstSnapshot)
       .expect(200);
 
@@ -52,6 +54,7 @@ describe("POST /snapshots", () => {
 
     const response = await request(app)
       .post("/snapshots")
+      .set("X-API-Key", TEST_API_KEY)
       .send(secondSnapshot)
       .expect(200);
 
@@ -75,6 +78,7 @@ describe("POST /snapshots", () => {
 
     await request(app)
       .post("/snapshots")
+      .set("X-API-Key", TEST_API_KEY)
       .send(firstSnapshot)
       .expect(200);
 
@@ -88,11 +92,47 @@ describe("POST /snapshots", () => {
 
     const response = await request(app)
       .post("/snapshots")
+      .set("X-API-Key", TEST_API_KEY)
       .send(secondSnapshot)
       .expect(200);
 
     expect(response.body.hasChanges).toBe(true);
     expect(Array.isArray(response.body.changedElements)).toBe(true);
+  });
+
+  it("returns 401 when API key is missing", async () => {
+    const snapshotData = createSnapshotData({
+      sessionId: randomSessionId(),
+    });
+
+    const response = await request(app)
+      .post("/snapshots")
+      .send(snapshotData)
+      .expect("Content-Type", /json/)
+      .expect(401);
+
+    expect(response.body).toMatchObject({
+      success: false,
+      error: "API key required",
+    });
+  });
+
+  it("returns 401 for invalid API key", async () => {
+    const snapshotData = createSnapshotData({
+      sessionId: randomSessionId(),
+    });
+
+    const response = await request(app)
+      .post("/snapshots")
+      .set("X-API-Key", "invalid-api-key")
+      .send(snapshotData)
+      .expect("Content-Type", /json/)
+      .expect(401);
+
+    expect(response.body).toMatchObject({
+      success: false,
+      error: "Invalid API key",
+    });
   });
 
   it("returns 400 for invalid payload", async () => {
@@ -103,6 +143,7 @@ describe("POST /snapshots", () => {
 
     const response = await request(app)
       .post("/snapshots")
+      .set("X-API-Key", TEST_API_KEY)
       .send(invalidData)
       .expect("Content-Type", /json/)
       .expect(400);
@@ -121,6 +162,7 @@ describe("POST /snapshots", () => {
 
     const response = await request(app)
       .post("/snapshots")
+      .set("X-API-Key", TEST_API_KEY)
       .send(snapshotData)
       .expect(400);
 
@@ -134,6 +176,7 @@ describe("POST /snapshots", () => {
 
     const response = await request(app)
       .post("/snapshots")
+      .set("X-API-Key", TEST_API_KEY)
       .send(snapshotData)
       .expect(400);
 
@@ -148,6 +191,7 @@ describe("POST /snapshots", () => {
 
     const response = await request(app)
       .post("/snapshots")
+      .set("X-API-Key", TEST_API_KEY)
       .send(snapshotData)
       .expect(400);
 
@@ -164,6 +208,7 @@ describe("POST /snapshots", () => {
 
     const response = await request(app)
       .post("/snapshots")
+      .set("X-API-Key", TEST_API_KEY)
       .send(snapshotData)
       .expect(200);
 
@@ -179,10 +224,10 @@ describe("POST /snapshots", () => {
 
     const response = await request(app)
       .post("/snapshots")
+      .set("X-API-Key", TEST_API_KEY)
       .send(snapshotData)
       .expect(200);
 
     expect(response.body.hasChanges).toBe(false);
   });
 });
-

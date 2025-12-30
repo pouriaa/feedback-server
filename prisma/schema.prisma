@@ -1,8 +1,9 @@
 // Prisma schema for Product Feedback API
-// Using SQLite for local development - easy to swap for PostgreSQL in production
+// Using SQLite for local development, Cloudflare D1 in production
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
@@ -10,10 +11,50 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ========================================
+// Multi-tenancy Models
+// ========================================
+
+/// Project represents a tenant in the multi-tenant system
+model Project {
+  id        String   @id @default(uuid())
+  name      String
+  apiKey    String   @unique @map("api_key")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  allowedOrigins AllowedOrigin[]
+  feedback       Feedback[]
+  snapshots      Snapshot[]
+
+  @@map("projects")
+}
+
+/// Allowed origins for a project (CORS/origin validation)
+model AllowedOrigin {
+  id        String   @id @default(uuid())
+  projectId String   @map("project_id")
+  origin    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, origin])
+  @@map("allowed_origins")
+}
+
+// ========================================
+// Core Models
+// ========================================
+
 /// Feedback submission from users
 model Feedback {
   id         String   @id @default(uuid())
   receivedAt DateTime @default(now())
+
+  // Project relation (multi-tenancy)
+  projectId String  @map("project_id")
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   // Context fields (flattened for better queryability)
   timestamp  String // Original submission timestamp (ISO 8601)
@@ -37,6 +78,7 @@ model Feedback {
   responseType  String // "rating" | "choice" | "text"
   responseValue String // JSON-encoded value (can be string, number, or array)
 
+  @@index([projectId])
   @@index([sessionId])
   @@index([url])
   @@index([triggerType])
@@ -47,6 +89,10 @@ model Feedback {
 model Snapshot {
   id         String   @id @default(uuid())
   receivedAt DateTime @default(now())
+
+  // Project relation (multi-tenancy)
+  projectId String  @map("project_id")
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   // Snapshot data
   html        String // Large HTML content
@@ -60,8 +106,9 @@ model Snapshot {
   viewportWidth  Int?
   viewportHeight Int?
 
-  // Composite unique constraint for quick lookup
-  @@unique([sessionId, url])
+  // Composite unique constraint for quick lookup (now scoped by project)
+  @@unique([projectId, sessionId, url])
+  @@index([projectId])
   @@index([sessionId])
   @@index([fingerprint])
 }

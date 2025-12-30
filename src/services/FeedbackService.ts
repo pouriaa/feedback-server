@@ -1,18 +1,24 @@
 /**
  * FeedbackService - Business logic for handling feedback submissions
- * Uses Prisma with SQLite for persistent storage
+ * Uses Prisma with SQLite/D1 for persistent storage
  */
 
-import { prisma } from "../db/index.js";
+import { getPrisma } from "../db/index.js";
 import type { FeedbackData, StoredFeedback, FeedbackSubmissionResponse } from "../types/index.js";
 
 export class FeedbackService {
   /**
    * Store a new feedback submission
+   * @param data - Feedback data from the client
+   * @param projectId - Project ID for multi-tenancy
    */
-  async create(data: FeedbackData): Promise<FeedbackSubmissionResponse> {
+  async create(data: FeedbackData, projectId: string): Promise<FeedbackSubmissionResponse> {
+    const prisma = getPrisma();
     const feedback = await prisma.feedback.create({
       data: {
+        // Project relation
+        projectId,
+
         // Context fields
         timestamp: data.context.timestamp,
         url: data.context.url,
@@ -38,6 +44,7 @@ export class FeedbackService {
     });
 
     console.log(`[FeedbackService] Stored feedback ${feedback.id}`, {
+      projectId,
       sessionId: data.context.sessionId,
       trigger: data.context.trigger.type,
       responseType: data.response.type,
@@ -50,24 +57,31 @@ export class FeedbackService {
   }
 
   /**
-   * Get a feedback entry by ID
+   * Get a feedback entry by ID (optionally scoped to project)
    */
-  async getById(id: string): Promise<StoredFeedback | null> {
+  async getById(id: string, projectId?: string): Promise<StoredFeedback | null> {
+    const prisma = getPrisma();
     const feedback = await prisma.feedback.findUnique({
       where: { id },
     });
 
     if (!feedback) return null;
 
+    // If projectId provided, verify ownership
+    if (projectId && feedback.projectId !== projectId) {
+      return null;
+    }
+
     return this.toStoredFeedback(feedback);
   }
 
   /**
-   * Get all feedback entries for a session
+   * Get all feedback entries for a session (scoped to project)
    */
-  async getBySessionId(sessionId: string): Promise<StoredFeedback[]> {
+  async getBySessionId(sessionId: string, projectId: string): Promise<StoredFeedback[]> {
+    const prisma = getPrisma();
     const feedbacks = await prisma.feedback.findMany({
-      where: { sessionId },
+      where: { sessionId, projectId },
       orderBy: { receivedAt: "desc" },
     });
 
@@ -75,10 +89,12 @@ export class FeedbackService {
   }
 
   /**
-   * Get all feedback entries
+   * Get all feedback entries for a project
    */
-  async getAll(): Promise<StoredFeedback[]> {
+  async getAll(projectId: string): Promise<StoredFeedback[]> {
+    const prisma = getPrisma();
     const feedbacks = await prisma.feedback.findMany({
+      where: { projectId },
       orderBy: { receivedAt: "desc" },
     });
 
@@ -86,17 +102,19 @@ export class FeedbackService {
   }
 
   /**
-   * Get the count of feedback entries
+   * Get the count of feedback entries for a project
    */
-  async getCount(): Promise<number> {
-    return prisma.feedback.count();
+  async getCount(projectId: string): Promise<number> {
+    const prisma = getPrisma();
+    return prisma.feedback.count({ where: { projectId } });
   }
 
   /**
-   * Clear all feedback (useful for testing)
+   * Clear all feedback for a project (useful for testing)
    */
-  async clear(): Promise<void> {
-    await prisma.feedback.deleteMany();
+  async clear(projectId: string): Promise<void> {
+    const prisma = getPrisma();
+    await prisma.feedback.deleteMany({ where: { projectId } });
   }
 
   /**

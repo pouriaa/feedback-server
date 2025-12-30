@@ -6,6 +6,10 @@
 
 import type { FeedbackData, SnapshotData } from "../types/index.js";
 
+// Test project credentials (set up in vitest.setup.ts)
+export const TEST_API_KEY = "pf_test_api_key_for_testing";
+export const TEST_PROJECT_ID = "test-project-id-12345";
+
 /**
  * Creates a valid feedback submission payload
  */
@@ -86,4 +90,3 @@ export function createSnapshotData(
 export function randomSessionId(): string {
   return crypto.randomUUID();
 }
-

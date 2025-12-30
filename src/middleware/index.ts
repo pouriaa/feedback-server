@@ -22,4 +22,6 @@ export {
   tooManyRequests,
   internalError,
 } from "./errorHandler.js";
+export { createApiKeyAuth, createAdminAuth } from "./apiKeyAuth.js";
+export type { ApiKeyAuthOptions } from "./apiKeyAuth.js";
 

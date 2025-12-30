@@ -11,3 +11,4 @@ prisma/dev.db-journal
 # Note: .env is committed with defaults for dev, but ignored in root .gitignore
 # If you have sensitive data, use .env.local instead
 
+node_modules/

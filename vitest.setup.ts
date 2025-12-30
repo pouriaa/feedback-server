@@ -1,34 +1,70 @@
 /**
- * Vitest setup for server integration tests
+ * Vitest Setup File
  *
- * - Sets DATABASE_URL to use a separate test database
- * - Clears tables between tests for isolation
- * - Disconnects Prisma after all tests complete
+ * Initializes Prisma client and test database before running tests.
+ * Creates a test project with a known API key for integration tests.
  */
 
-import path from "path";
-import { fileURLToPath } from "url";
+import { beforeAll, afterAll, beforeEach } from "vitest";
+import { initializePrisma, disconnectDb, getPrisma } from "./src/db/index.js";
+import { TEST_API_KEY, TEST_PROJECT_ID } from "./src/__tests__/helpers.js";
 
-// Set DATABASE_URL to test database BEFORE any other imports
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const testDbPath = path.join(__dirname, "prisma", "test.db");
-process.env.DATABASE_URL = `file:${testDbPath}`;
-
-// Use dynamic import to ensure DATABASE_URL is set first
-const { prisma, disconnectDb } = await import("./src/db/index.js");
+// Set test database URL and admin key
+process.env.DATABASE_URL = "file:./prisma/test.db";
+process.env.ADMIN_API_KEY = "test-admin-key";
 
 beforeAll(async () => {
-  // Clear all tables once before running any tests
-  // Each test uses unique session IDs, so we don't need per-test cleanup
-  await prisma.feedback.deleteMany();
-  await prisma.snapshot.deleteMany();
+  // Initialize Prisma client for tests
+  await initializePrisma();
+
+  const prisma = getPrisma();
+
+  // Clean up any existing test data (order matters due to foreign keys)
+  await prisma.feedback.deleteMany({});
+  await prisma.snapshot.deleteMany({});
+  await prisma.allowedOrigin.deleteMany({});
+  await prisma.project.deleteMany({});
+
+  // Create a test project with a known API key (use upsert to avoid conflicts)
+  await prisma.project.upsert({
+    where: { id: TEST_PROJECT_ID },
+    update: {
+      name: "Test Project",
+      apiKey: TEST_API_KEY,
+    },
+    create: {
+      id: TEST_PROJECT_ID,
+      name: "Test Project",
+      apiKey: TEST_API_KEY,
+      allowedOrigins: {
+        create: [
+          { origin: "https://example.com" },
+        ],
+      },
+    },
+  });
+});
+
+beforeEach(async () => {
+  // Ensure test project exists before each test
+  const prisma = getPrisma();
+  
+  // Upsert the test project to make sure it exists
+  await prisma.project.upsert({
+    where: { id: TEST_PROJECT_ID },
+    update: {},
+    create: {
+      id: TEST_PROJECT_ID,
+      name: "Test Project",
+      apiKey: TEST_API_KEY,
+      allowedOrigins: {
+        create: [{ origin: "https://example.com" }],
+      },
+    },
+  });
 });
 
 afterAll(async () => {
-  // Clean up and disconnect Prisma after all tests
-  await prisma.feedback.deleteMany();
-  await prisma.snapshot.deleteMany();
+  // Disconnect from database after tests
   await disconnectDb();
 });
-

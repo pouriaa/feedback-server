@@ -1,9 +1,9 @@
 /**
  * SnapshotService - Business logic for handling DOM snapshot comparison
- * Uses Prisma with SQLite for persistent storage
+ * Uses Prisma with SQLite/D1 for persistent storage
  */
 
-import { prisma } from "../db/index.js";
+import { getPrisma } from "../db/index.js";
 import type {
   SnapshotData,
   StoredSnapshot,
@@ -15,12 +15,17 @@ import type {
 export class SnapshotService {
   /**
    * Process a snapshot and detect changes compared to previous snapshot
+   * @param data - Snapshot data from the client
+   * @param projectId - Project ID for multi-tenancy
    */
-  async processSnapshot(data: SnapshotData): Promise<ChangeDetectionResponse> {
-    // Find existing snapshot for this session + url combination
+  async processSnapshot(data: SnapshotData, projectId: string): Promise<ChangeDetectionResponse> {
+    const prisma = getPrisma();
+
+    // Find existing snapshot for this project + session + url combination
     const existingSnapshot = await prisma.snapshot.findUnique({
       where: {
-        sessionId_url: {
+        projectId_sessionId_url: {
+          projectId,
           sessionId: data.sessionId,
           url: data.url,
         },
@@ -30,7 +35,8 @@ export class SnapshotService {
     // Upsert the new snapshot (replace if exists, create if not)
     await prisma.snapshot.upsert({
       where: {
-        sessionId_url: {
+        projectId_sessionId_url: {
+          projectId,
           sessionId: data.sessionId,
           url: data.url,
         },
@@ -44,6 +50,7 @@ export class SnapshotService {
         viewportHeight: data.viewport?.height,
       },
       create: {
+        projectId,
         html: data.html,
         url: data.url,
         timestamp: data.timestamp,
@@ -309,24 +316,31 @@ export class SnapshotService {
   }
 
   /**
-   * Get a snapshot by ID
+   * Get a snapshot by ID (optionally scoped to project)
    */
-  async getById(id: string): Promise<StoredSnapshot | null> {
+  async getById(id: string, projectId?: string): Promise<StoredSnapshot | null> {
+    const prisma = getPrisma();
     const snapshot = await prisma.snapshot.findUnique({
       where: { id },
     });
 
     if (!snapshot) return null;
 
+    // If projectId provided, verify ownership
+    if (projectId && snapshot.projectId !== projectId) {
+      return null;
+    }
+
     return this.toStoredSnapshot(snapshot);
   }
 
   /**
-   * Get all snapshots for a session
+   * Get all snapshots for a session (scoped to project)
    */
-  async getBySessionId(sessionId: string): Promise<StoredSnapshot[]> {
+  async getBySessionId(sessionId: string, projectId: string): Promise<StoredSnapshot[]> {
+    const prisma = getPrisma();
     const snapshots = await prisma.snapshot.findMany({
-      where: { sessionId },
+      where: { sessionId, projectId },
       orderBy: { receivedAt: "desc" },
     });
 
@@ -334,17 +348,19 @@ export class SnapshotService {
   }
 
   /**
-   * Get the count of stored snapshots
+   * Get the count of stored snapshots for a project
    */
-  async getCount(): Promise<number> {
-    return prisma.snapshot.count();
+  async getCount(projectId: string): Promise<number> {
+    const prisma = getPrisma();
+    return prisma.snapshot.count({ where: { projectId } });
   }
 
   /**
-   * Clear all snapshots (useful for testing)
+   * Clear all snapshots for a project (useful for testing)
    */
-  async clear(): Promise<void> {
-    await prisma.snapshot.deleteMany();
+  async clear(projectId: string): Promise<void> {
+    const prisma = getPrisma();
+    await prisma.snapshot.deleteMany({ where: { projectId } });
   }
 
   /**

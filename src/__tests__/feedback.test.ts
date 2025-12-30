@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import request from "supertest";
 import { app } from "../index.js";
-import { createFeedbackData, randomSessionId } from "./helpers.js";
+import { createFeedbackData, randomSessionId, TEST_API_KEY } from "./helpers.js";
 
 describe("POST /feedback", () => {
   it("returns { success: true, id } for valid feedback submission", async () => {
@@ -13,6 +13,7 @@ describe("POST /feedback", () => {
 
     const response = await request(app)
       .post("/feedback")
+      .set("X-API-Key", TEST_API_KEY)
       .send(feedbackData)
       .expect("Content-Type", /json/)
       .expect(200);
@@ -20,6 +21,37 @@ describe("POST /feedback", () => {
     expect(response.body).toMatchObject({
       success: true,
       id: expect.any(String),
+    });
+  });
+
+  it("returns 401 when API key is missing", async () => {
+    const feedbackData = createFeedbackData();
+
+    const response = await request(app)
+      .post("/feedback")
+      .send(feedbackData)
+      .expect("Content-Type", /json/)
+      .expect(401);
+
+    expect(response.body).toMatchObject({
+      success: false,
+      error: "API key required",
+    });
+  });
+
+  it("returns 401 for invalid API key", async () => {
+    const feedbackData = createFeedbackData();
+
+    const response = await request(app)
+      .post("/feedback")
+      .set("X-API-Key", "invalid-api-key")
+      .send(feedbackData)
+      .expect("Content-Type", /json/)
+      .expect(401);
+
+    expect(response.body).toMatchObject({
+      success: false,
+      error: "Invalid API key",
     });
   });
 
@@ -36,6 +68,7 @@ describe("POST /feedback", () => {
 
     const response = await request(app)
       .post("/feedback")
+      .set("X-API-Key", TEST_API_KEY)
       .send(invalidData)
       .expect("Content-Type", /json/)
       .expect(400);
@@ -63,6 +96,7 @@ describe("POST /feedback", () => {
 
     const response = await request(app)
       .post("/feedback")
+      .set("X-API-Key", TEST_API_KEY)
       .send(incompleteData)
       .expect(400);
 
@@ -78,6 +112,7 @@ describe("POST /feedback", () => {
 
     const response = await request(app)
       .post("/feedback")
+      .set("X-API-Key", TEST_API_KEY)
       .send(feedbackData)
       .expect(200);
 
@@ -92,6 +127,7 @@ describe("POST /feedback", () => {
 
     const response = await request(app)
       .post("/feedback")
+      .set("X-API-Key", TEST_API_KEY)
       .send(feedbackData)
       .expect(200);
 
@@ -106,6 +142,7 @@ describe("POST /feedback", () => {
 
     const response = await request(app)
       .post("/feedback")
+      .set("X-API-Key", TEST_API_KEY)
       .send(feedbackData)
       .expect(200);
 
@@ -120,6 +157,7 @@ describe("POST /feedback", () => {
 
     const response = await request(app)
       .post("/feedback")
+      .set("X-API-Key", TEST_API_KEY)
       .send(feedbackData)
       .expect(200);
 
@@ -133,6 +171,7 @@ describe("POST /feedback", () => {
 
     const response = await request(app)
       .post("/feedback")
+      .set("X-API-Key", TEST_API_KEY)
       .send(feedbackData)
       .expect(200);
 
@@ -145,15 +184,16 @@ describe("POST /feedback", () => {
 
     const response1 = await request(app)
       .post("/feedback")
+      .set("X-API-Key", TEST_API_KEY)
       .send(feedbackData1)
       .expect(200);
 
     const response2 = await request(app)
       .post("/feedback")
+      .set("X-API-Key", TEST_API_KEY)
       .send(feedbackData2)
       .expect(200);
 
     expect(response1.body.id).not.toBe(response2.body.id);
   });
 });
-
