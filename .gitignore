@@ -12,3 +12,6 @@ prisma/dev.db-journal
 # If you have sensitive data, use .env.local instead
 
 node_modules/
+
+# Wrangler local state (D1 local database, temp files)
+.wrangler/
